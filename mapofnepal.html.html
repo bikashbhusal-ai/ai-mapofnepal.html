@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nepal Province Map</title>
+  <link href="https://fonts.googleapis.com/css2?family=Yatra+One&family=Noto+Sans+Devanagari:wght@300;400;600;700&family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --gold: #c9922b;
+      --gold-light: #f0c060;
+      --deep: #0d1b2a;
+      --panel-bg: rgba(10, 20, 35, 0.92);
+      --accent: #e84545;
+      --text-light: #f0ece3;
+      --text-muted: #9baab8;
+      --border: rgba(201,146,43,0.3);
+      --radius: 14px;
+      --shadow: 0 8px 40px rgba(0,0,0,0.55);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0d1b2a;
+      height: 100vh;
+      overflow: hidden;
+      color: var(--text-light);
+    }
+
+    /* ── IFRAME ── */
+    #map-frame {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      z-index: 1;
+    }
+
+    /* ── TOP-RIGHT: DESIGNER CREDIT + LANGUAGE SWITCHER (same row) ── */
+    #top-right-bar {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: fadeDown 0.6s 0.1s ease both;
+    }
+
+    #designer-credit {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 7px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+    }
+    #designer-credit .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 6px var(--gold);
+      animation: pulse 2s infinite;
+    }
+    #designer-credit span {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+    #designer-credit strong {
+      color: var(--gold-light);
+      font-weight: 600;
+    }
+
+    /* divider between credit and lang buttons */
+    .top-bar-divider {
+      width: 1px;
+      height: 28px;
+      background: var(--border);
+      border-radius: 1px;
+    }
+
+    /* ── LANGUAGE SWITCHER ── */
+    #lang-switcher {
+      display: flex;
+      gap: 6px;
+    }
+    .lang-btn {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 7px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-muted);
+      backdrop-filter: blur(12px);
+      transition: all 0.25s ease;
+      letter-spacing: 0.05em;
+    }
+    .lang-btn:hover { color: var(--gold-light); border-color: var(--gold); }
+    .lang-btn.active {
+      background: linear-gradient(135deg, #c9922b, #e6b54a);
+      color: #0d1b2a;
+      border-color: transparent;
+      box-shadow: 0 4px 18px rgba(201,146,43,0.4);
+    }
+
+    /* ── BOTTOM-LEFT: INFO PANEL + SHOW/HIDE ── */
+    #bottom-left {
+      position: fixed;
+      bottom: 18px;
+      left: 14px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-start;
+      animation: fadeUp 0.6s 0.2s ease both;
+    }
+
+    /* Info Panel */
+    #info-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+      width: 320px;
+      overflow: hidden;
+      transition: all 0.45s cubic-bezier(0.4,0,0.2,1);
+      max-height: 500px;
+      opacity: 1;
+    }
+    #info-panel.hidden {
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
+      margin-bottom: -10px;
+    }
+
+    .panel-header {
+      background: linear-gradient(135deg, rgba(201,146,43,0.18), rgba(201,146,43,0.06));
+      border-bottom: 1px solid var(--border);
+      padding: 14px 18px 12px;
+    }
+    .panel-title {
+      font-family: 'Yatra One', serif;
+      font-size: 15px;
+      color: var(--gold-light);
+      line-height: 1.4;
+      letter-spacing: 0.02em;
+    }
+    .panel-title.eng { font-family: 'Playfair Display', serif; font-size: 13.5px; }
+
+    .panel-body {
+      padding: 12px 16px 14px;
+    }
+
+    .province-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      transition: background 0.2s;
+    }
+    .province-item:last-child { border-bottom: none; }
+
+    .prov-num {
+      min-width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--gold), #a0701a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #0d1b2a;
+      margin-top: 1px;
+    }
+
+    .prov-info { flex: 1; }
+    .prov-name {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-light);
+      font-family: 'Noto Sans Devanagari', sans-serif;
+      line-height: 1.3;
+    }
+    .prov-name.eng { font-family: 'DM Sans', sans-serif; font-size: 13px; }
+    .prov-cap {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      font-family: 'Noto Sans Devanagari', sans-serif;
+    }
+    .prov-cap.eng { font-family: 'DM Sans', sans-serif; }
+
+    /* ── SHOW / HIDE BUTTONS ── */
+    #panel-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .ctrl-btn {
+      padding: 9px 22px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(12px);
+      letter-spacing: 0.04em;
+    }
+    #btn-show {
+      background: linear-gradient(135deg, #1a8a4a, #0f5e32);
+      color: #c8ffdd;
+      border-color: #1a8a4a;
+      box-shadow: 0 4px 16px rgba(26,138,74,0.3);
+    }
+    #btn-show:hover { box-shadow: 0 4px 24px rgba(26,138,74,0.5); transform: translateY(-1px); }
+
+    #btn-hide {
+      background: rgba(120, 69, 69, 50);
+      color: #FFD700;
+      border-color: rgba(222,69,69,0.35);
+    }
+    #btn-hide:hover {
+      background: rgba(232,69,69,0.28);
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; } 50% { opacity: 0.35; }
+    }
+
+    /* ── SCROLLBAR ── */
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- MAP IFRAME -->
+  <iframe id="map-frame"
+    src="https://bikashbhusal.com.np/map/map.php?lang=ne"
+    title="Nepal Province Map"
+    allowfullscreen>
+  </iframe>
+
+  <!-- TOP RIGHT: Designer Credit + Language Switcher -->
+  <div id="top-right-bar">
+    <div id="designer-credit">
+      <div class="dot"></div>
+      <span>Design by: <strong>Bikash Bhusal</strong></span>
+    </div>
+    <div class="top-bar-divider"></div>
+    <div id="lang-switcher">
+      <button class="lang-btn active" onclick="setLang('nep')" id="btn-nep">नेपाली</button>
+      <button class="lang-btn" onclick="setLang('eng')" id="btn-eng">English</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM LEFT: Panel + Controls -->
+  <div id="bottom-left">
+
+    <!-- Info Panel -->
+    <div id="info-panel">
+      <div class="panel-header">
+        <div class="panel-title" id="panel-title">नेपालका ७ प्रदेश र तिनका राजधानि शहरहरू</div>
+      </div>
+      <div class="panel-body" id="panel-body">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Show / Hide buttons -->
+    <div id="panel-controls">
+      <button class="ctrl-btn" id="btn-show" onclick="showPanel()">▶ Show</button>
+      <button class="ctrl-btn" id="btn-hide" onclick="hidePanel()">✕ Hide / Reset</button>
+    </div>
+  </div>
+
+<script>
+  // ── PANEL DATA ──
+  const DATA = {
+    nep: {
+      title: 'नेपालका ७ प्रदेश र तिनका राजधानि शहरहरू',
+      provinces: [
+        { name: 'कोशी प्रदेश',        cap: 'राजधानी: विराटनगर (मोरङ्)' },
+        { name: 'मधेश प्रदेश',        cap: 'राजधानी: जनकपुरधाम (धनुषा)' },
+        { name: 'बागमती प्रदेश',      cap: 'राजधानी: हेटौडा (मकवानपुर)' },
+        { name: 'गण्डकी प्रदेश',      cap: 'राजधानी: पोखरा (कास्की)' },
+        { name: 'लुम्बिनी प्रदेश',    cap: 'राजधानी: देउखुरी (दाङ)' },
+        { name: 'कर्णाली प्रदेश',     cap: 'राजधानी: वीरेन्द्रनगर (सुर्खेत)' },
+        { name: 'सुदूरपश्चिम प्रदेश', cap: 'राजधानी: गोदावरी (कैलाली)' },
+      ],
+      nameCls: '', capCls: '', titleCls: ''
+    },
+    eng: {
+      title: '7 Provinces of Nepal & Their Capital Cities',
+      provinces: [
+        { name: 'Koshi Province',          cap: 'Capital: Biratnagar (Morang)' },
+        { name: 'Madhesh Province',        cap: 'Capital: Janakpurdham (Dhanusha)' },
+        { name: 'Bagmati Province',        cap: 'Capital: Hetauda (Makwanpur)' },
+        { name: 'Gandaki Province',        cap: 'Capital: Pokhara (Kaski)' },
+        { name: 'Lumbini Province',        cap: 'Capital: Deukhuri (Dang)' },
+        { name: 'Karnali Province',        cap: 'Capital: Birendranagar (Surkhet)' },
+        { name: 'Sudurpashchim Province',  cap: 'Capital: Godawari (Kailali)' },
+      ],
+      nameCls: 'eng', capCls: 'eng', titleCls: 'eng'
+    }
+  };
+
+  // ── MAP LANG PARAM (for sites that support ?lang=) ──
+  // Primary: reload iframe with lang param so server-side map renders in correct language.
+  // The iframe URL is changed to ?lang=ne (Nepali) or ?lang=en (English).
+  const MAP_BASE = 'https://bikashbhusal.com.np/map/map.php';
+  const LANG_PARAM = { nep: 'ne', eng: 'en' };
+
+  let currentLang = 'nep';
+  let panelVisible = true;
+
+  // ── IFRAME LANGUAGE SWITCH ──
+  // Tries ?lang= param first. If the site ignores it, postMessage is also sent.
+  function switchMapLang(lang) {
+    const frame = document.getElementById('map-frame');
+    const paramVal = LANG_PARAM[lang];
+
+    // 1. Reload with lang param (works if map.php supports it)
+    const newSrc = MAP_BASE + '?lang=' + paramVal;
+    if (frame.src !== newSrc) {
+      frame.src = newSrc;
+    }
+
+    // 2. After load, also try postMessage (works if map.php listens for it)
+    frame.onload = () => {
+      try {
+        frame.contentWindow.postMessage({ type: 'setLang', lang: paramVal }, '*');
+      } catch(e) {}
+    };
+  }
+
+  // ── MAIN LANG SET ──
+  function setLang(lang) {
+    currentLang = lang;
+    document.getElementById('btn-nep').classList.toggle('active', lang === 'nep');
+    document.getElementById('btn-eng').classList.toggle('active', lang === 'eng');
+    switchMapLang(lang);
+    render();
+  }
+
+  // ── RENDER PANEL ──
+  function render() {
+    const d = DATA[currentLang];
+    const titleEl = document.getElementById('panel-title');
+    titleEl.textContent = d.title;
+    titleEl.className = 'panel-title ' + d.titleCls;
+
+    const body = document.getElementById('panel-body');
+    body.innerHTML = d.provinces.map((p, i) => `
+      <div class="province-item">
+        <div class="prov-num">${i + 1}</div>
+        <div class="prov-info">
+          <div class="prov-name ${d.nameCls}">${p.name}</div>
+          <div class="prov-cap ${d.capCls}">${p.cap}</div>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('btn-show').innerHTML = (currentLang === 'nep' ? '▶ देखाउनुस्' : '▶ Show');
+    document.getElementById('btn-hide').innerHTML = (currentLang === 'nep' ? '✕ लुकाउनुस् / रिसेट' : '✕ Hide / Reset');
+  }
+
+  function showPanel() {
+    panelVisible = true;
+    document.getElementById('info-panel').classList.remove('hidden');
+  }
+
+  function hidePanel() {
+    panelVisible = false;
+    document.getElementById('info-panel').classList.add('hidden');
+  }
+
+  // Init
+  render();
+</script>
+</body>
+</html>
